@@ -51,3 +51,8 @@ Keep your Telegram account signed in and ensure an active internet connection fo
 ## Disclaimer
 
 This project is intended for educational purposes only. Use at your own risk.
+
+## Contributing
+
+Contributions are welcome! If you have any suggestions or improvements, please feel free to open an issue or submit a pull request.
+
