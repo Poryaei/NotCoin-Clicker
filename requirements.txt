@@ -1,0 +1,4 @@
+asyncio
+requests
+telethon
+urllib3
