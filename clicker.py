@@ -40,7 +40,7 @@ class clicker:
             "Referer": "https://clicker.joincommunity.xyz/",
             "X-Requested-With": "org.telegram.messenger.web",
             "auth":"1",
-            "User-Agent": "Mozilla/5.0 (Linux; Android 9; SM-N975F Build/PI; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120.0.6099.116 Mobile Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 7_1_2 like Mac OS X) AppleWebKit/537.51.2 (KHTML, like Gecko) Version/7.0 Mobile/11D257 Safari/9537.53",
         }
         
         self.client = client
