@@ -38,7 +38,7 @@ This project contains code for a Telegram bot and background clicker that intera
 
 ## Screenshots
 Collection Screen:
-![](Collection.PNG)
+![](Collection.png)
 
 
 
