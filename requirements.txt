@@ -2,3 +2,4 @@ asyncio
 requests
 telethon
 urllib3
+js2py
