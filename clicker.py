@@ -1,4 +1,5 @@
 import asyncio
+import js2py
 import requests
 import os
 from telethon.sync import TelegramClient
@@ -12,8 +13,8 @@ import time
 import json
 from threading import Thread
 # -----------
-api_id = 00000 # change it!
-api_hash = '2a305482' # change it!
+api_id = 8086441
+api_hash = '2a305482a93b5a762d2acd4be90dd00f'
 
 client = TelegramClient('bot', api_id, api_hash)
 client.start()
@@ -21,7 +22,6 @@ client.start()
 db = {
     'click': 'off'
 }
-
 admin = 6135970338 # Admin user id
 
 print("Client is Ready ;)")
@@ -54,7 +54,9 @@ class clicker:
             )
         )
         self.webAppData = self.generateAuthToken()
+        print(self.webviewApp)
         self.mining_started = False
+        self.startTime = time.time()
     
     def generateAuthToken(self):
         webData = self.webviewApp.url.split('/clicker#tgWebAppData=')[1].replace("%3D","=").split('&tgWebAppVersion=')[0].replace("%26","&")
@@ -93,24 +95,24 @@ class clicker:
             elif "window.Telegram.WebApp" in string:
                 return 5
 
-            with open("code.js", "w") as f:
-                f.write(f"console.log({string})")
-            result = subprocess.getoutput("node code.js").replace(" ", "")
+
+            result = js2py.eval_js(string)
             try:
                 return int(result)
             except Exception as e:
                 print("Bad ", e)
-            
-            os.remove('code.js')
             
         if len(_hash) != 1:
             return sum([_run_js(base64.b64decode(data.encode()).decode("utf-8")) for data in _hash])
         else:
             return _run_js(base64.b64decode(_hash[0].encode()).decode("utf-8"))
     
+    def readyToClick(self):
+        pass
+    
     def startMin(self):
         _sh = 1
-        _sc = 7
+        _sc = 8
         getData = self.notCoins(_sc, _sh)
         if getData == False:
             return False, 'Bad Data'
@@ -124,13 +126,20 @@ class clicker:
         self.mining_started = True
         
         while self.mining_started:
-            _sc = (random.randint(10,100) // 7) * 7
+            self.readyToClick()
+            
             print(f'[~] Mining {_sc} coins ...')
             try:
                 getData = self.notCoins(_sc, _sh)
+                print(getData)
+                _sc = (random.randint(7,20)) * getData["data"][0]["multipleClicks"]
+                if getData["data"][0]["availableCoins"] < _sc:
+                    print('[~] Sleeping For 10MIN')
+                    time.sleep(600)
+                    
                 _hash = getData['data'][0]['hash']
                 _sh = self.genrateHash(_hash)
-                print(f'[+] Mining {_sc} coins Done! New Balance: {getData["data"][0]["totalCoins"]}')
+                print(f'[+] Mining {_sc} coins Done! New Balance: {getData["data"][0]["balanceCoins"]}')
                 time.sleep(random.randint(7, 16))
             except:
                 print(f'[!] Mining {_sc} coins field!')
@@ -144,11 +153,17 @@ class clicker:
     def stop(self):
         self.mining_started = False
     
+    def upTime(self):
+        return time.time() - self.startTime
+        
+        
+    
+
 
 client_clicker = clicker(client)
 
 async def answer(event):
-    global db
+    global db, client_clicker
     text = event.raw_text
     user_id = event.sender_id
     
