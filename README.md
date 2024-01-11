@@ -7,7 +7,6 @@ A Python bot and automated clicker for accumulating NotCoins on Telegram.
 This project contains code for a Telegram bot and background clicker that interacts with the NotCoin Bot to automatically collect NotCoins on your behalf. It runs continuously in the background while your collection is enabled.
 
 ## Prerequisites
-- Node.js 16 or higher
 - A Telegram API ID and hash
 
 ## Getting Started
