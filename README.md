@@ -22,10 +22,9 @@ This project contains code for a Telegram bot and background clicker that intera
    ```
    
 3. Set up your Telegram API credentials And ADMIN Telegram chat id 
-   - Create a new account and get the API key and hash (https://my.telegram.org)
-   - Change lines (15 and 16)
+   - Create a new account and get the api_id and api_hash (https://my.telegram.org)
    - Get admin chat id from (https://t.me/chatIDrobot)
-   - Change line (24)
+   - Edit config.json file
    
 4. Run the clicker bot
    ```
