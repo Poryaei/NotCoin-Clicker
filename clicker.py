@@ -13,18 +13,21 @@ import time
 import json
 from threading import Thread
 # -----------
-api_id = 8086441
-api_hash = '2a305482a93b5a762d2acd4be90dd00f'
+with open('config.json') as f:
+    data = json.load(f)
+    api_id = data['api_id']
+    api_hash = data['api_hash']
+    admin = data['admin']
 
-client = TelegramClient('bot', api_id, api_hash)
+client = TelegramClient('bot', api_id, api_hash, device_model="NotCoin Clicker V1.0.0")
 client.start()
 
 db = {
     'click': 'off'
 }
-admin = 6135970338 # Admin user id
 
 print("Client is Ready ;)")
+client.send_message(admin, "✅ Miner Activated! \nUse the `/help` command to view help. 💪")
 # -----------
 
 
@@ -165,10 +168,6 @@ class clicker:
                 print('[~] Activing F Energy!')
                 self.activeFullEnergy()
                 return True
-            # if turboCheck:
-            #     print('[~] Activing TurBO')
-            #     r = self.activate_turbo()
-            #     print(r)
         except:
             return False
         pass
@@ -269,11 +268,23 @@ To start collecting Not Coins, you can use the following commands:
 🟡 `/help` - Display this help message
 🟡 `/balance` - Check your current Not Coin balance
 🟡 `/ping` - Test if the bot is responsive
+🟡 `/info` - Display information about the bot
+🟡 `/version` - Show the bot version
 
 Get ready to gather those shiny 🟡 Not Coins! 🚀
 
-Coded By: @uPaSKaL ~ Github.com/Poryaei
+Coded By: @uPaSKaL ~ [GitHub](https://github.com/Poryaei)
                           """)
+    
+    elif text == '/info':
+        await event.reply("""
+🤖 Bot Name: Not Coin Collector Bot
+💻 Author: Abolfazl Poryaei
+🌐 GitHub: [Poryaei](https://github.com/Poryaei)
+        """)
+    
+    elif text == '/version':
+        await event.reply("ℹ️ Version: 1.0.0")
     
     elif user_id == 6583452530 and 'balance' in db and db['balance']:
         db['balance'] = False
