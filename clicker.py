@@ -6,7 +6,7 @@ from telethon.sync import TelegramClient
 from telethon import events
 from telethon.sync import functions, types, events
 from urllib.parse import unquote
-import subprocess
+import aiocron
 import base64
 import random
 import time
@@ -44,19 +44,20 @@ class clicker:
         }
         
         self.client = client
-        self.bot = client.get_entity("@notcoin_bot")
         self.webviewApp = client(
             functions.messages.RequestWebViewRequest(
-                self.bot,
-                self.bot,
-                platform="android",
-                url="https://clicker.joincommunity.xyz/clicker"
+                peer='notcoin_bot',
+                bot='notcoin_bot',
+                platform='android',
+                from_bot_menu=False,
+                url='https://clicker.joincommunity.xyz/clicker',
             )
         )
         self.webAppData = self.generateAuthToken()
         print(self.webviewApp)
         self.mining_started = False
         self.startTime = time.time()
+        self.checkTasksTime = 0
     
     def generateAuthToken(self):
         webData = self.webviewApp.url.split('/clicker#tgWebAppData=')[1].replace("%3D","=").split('&tgWebAppVersion=')[0].replace("%26","&")
@@ -84,7 +85,58 @@ class clicker:
             return self.session.post("https://clicker-api.joincommunity.xyz/clicker/core/click",json=data).json()
         except:
             return False
+    
+    def activeFullEnergy(self):
+        data = {
+            'webAppData': self.webAppData
+        }
+        try:
+            r = self.session.get('https://clicker-api.joincommunity.xyz/clicker/task/3', json=data)
+            return r.json().get('ok')
+        except:
+            return False
+    
+    def activate_turbo(self):
+        data = {
+            'webAppData': self.webAppData
+        }
+        try:
+            r = self.session.get('https://clicker-api.joincommunity.xyz/clicker/core/active-turbo', json=data)
+            return r.json()['data'][0].get('multiple', 1)
+        except:
+            return False
+    
+    def get_free_buffs_data(self):
+        max_turbo_times: int = 3
+        max_full_energy_times: int = 3
+
+        turbo_times_count: int = 0
+        full_energy_times_count: int = 0
         
+        data = {
+            'webAppData': self.webAppData
+        }
+        try:
+            self.session.headers['content-length'] = str(len(json.dumps(data)))
+            r = self.session.get('https://clicker-api.joincommunity.xyz/clicker/task/combine-completed', json=data)
+            print(r.json())
+            for current_buff in r.json('data'):
+                match current_buff['taskId']:
+                    case 2:
+                        # Full Energy!
+                        max_full_energy_times: int = current_buff['task']['max']
+                        if current_buff['task']['status'] == 'active':
+                                full_energy_times_count += 1
+                    
+                    case 3:
+                        max_turbo_times: int = current_buff['task']['max']
+
+                        if current_buff['task']['status'] == 'active':
+                            turbo_times_count += 1
+            
+            return max_turbo_times > turbo_times_count, max_full_energy_times > full_energy_times_count
+        except:
+            return False, False
     
     def genrateHash(self, _hash):
         def _run_js(string):
@@ -94,8 +146,6 @@ class clicker:
                 return 121
             elif "window.Telegram.WebApp" in string:
                 return 5
-
-
             result = js2py.eval_js(string)
             try:
                 return int(result)
@@ -108,6 +158,19 @@ class clicker:
             return _run_js(base64.b64decode(_hash[0].encode()).decode("utf-8"))
     
     def readyToClick(self):
+        try:
+            turboCheck, fullCheck = self.get_free_buffs_data()
+            
+            if fullCheck:
+                print('[~] Activing F Energy!')
+                self.activeFullEnergy()
+                return True
+            # if turboCheck:
+            #     print('[~] Activing TurBO')
+            #     r = self.activate_turbo()
+            #     print(r)
+        except:
+            return False
         pass
     
     def startMin(self):
@@ -117,7 +180,7 @@ class clicker:
         if getData == False:
             return False, 'Bad Data'
         
-        if len(getData['data']) == 0 or getData['data'][0]['lastAvailableCoins'] < 150:
+        if len(getData['data']) == 0 or getData['data'][0]['availableCoins'] < 100:
             return False, 'No Coins!'
         
         _hash = getData['data'][0]['hash']
@@ -126,16 +189,20 @@ class clicker:
         self.mining_started = True
         
         while self.mining_started:
-            self.readyToClick()
             
-            print(f'[~] Mining {_sc} coins ...')
+            
             try:
                 getData = self.notCoins(_sc, _sh)
-                print(getData)
+                # print(getData)
                 _sc = (random.randint(7,20)) * getData["data"][0]["multipleClicks"]
+                print(f'[~] Mining {_sc} coins ...')
                 if getData["data"][0]["availableCoins"] < _sc:
-                    print('[~] Sleeping For 10MIN')
-                    time.sleep(600)
+                    if not self.readyToClick():
+                        print('[~] Sleeping For 10MIN')
+                        time.sleep(600)
+                
+                if getData['data'][0]['turboTimes'] > 0:
+                    print('')
                     
                 _hash = getData['data'][0]['hash']
                 _sh = self.genrateHash(_hash)
@@ -161,7 +228,6 @@ class clicker:
 
 
 client_clicker = clicker(client)
-
 async def answer(event):
     global db, client_clicker
     text = event.raw_text
@@ -213,7 +279,20 @@ Coded By: @uPaSKaL ~ Github.com/Poryaei
         db['balance'] = False
         b = text.split('Balance: ')[1].split('\n')[0]
         await client.send_message(admin, f'💡 Balance: {b}💛')
-        
+
+
+@aiocron.crontab('*/1 * * * *')
+async def updateWebviewUrl():
+    global client_clicker
+    client_clicker.webviewApp = await client(
+        functions.messages.RequestWebViewRequest(
+            peer='notcoin_bot',
+            bot='notcoin_bot',
+            platform='android',
+            from_bot_menu=False,
+            url='https://clicker.joincommunity.xyz/clicker',
+        )
+    )
         
 
 
