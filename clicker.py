@@ -1,7 +1,7 @@
 import asyncio
 import js2py
 import requests
-import os
+import os, sys
 from telethon.sync import TelegramClient
 from telethon import events
 from telethon.sync import functions, types, events
@@ -61,21 +61,30 @@ class clicker:
         self.mining_started = False
         self.startTime = time.time()
         self.checkTasksTime = 0
+        self.notCoinBalance = 0
+    
+    def updateUrl(self, url):
+        self.webviewApp = url
     
     def generateAuthToken(self):
-        webData = self.webviewApp.url.split('/clicker#tgWebAppData=')[1].replace("%3D","=").split('&tgWebAppVersion=')[0].replace("%26","&")
-        user = webData.split("&user=")[1].split("&auth")[0]
-        webData = webData.replace(user, unquote(user))
-        data = {
-            'webAppData': webData
-        }
-        self.session.headers['content-length'] = str(len(json.dumps(data)))
-        authTK = self.session.post(
-            "https://clicker-api.joincommunity.xyz/auth/webapp-session",
-            json=data
-        ).json()['data']['accessToken']
-        self.session.headers['Authorization'] = f'Bearer {authTK}'
-        return webData
+        try:
+            webData = self.webviewApp.url.split('/clicker#tgWebAppData=')[1].replace("%3D","=").split('&tgWebAppVersion=')[0].replace("%26","&")
+            user = webData.split("&user=")[1].split("&auth")[0]
+            webData = webData.replace(user, unquote(user))
+            data = {
+                'webAppData': webData
+            }
+            self.session.headers['content-length'] = str(len(json.dumps(data)))
+            authTK = self.session.post(
+                "https://clicker-api.joincommunity.xyz/auth/webapp-session",
+                json=data
+            ).json()['data']['accessToken']
+            self.session.headers['Authorization'] = f'Bearer {authTK}'
+            return webData
+        except Exception as e:
+            print('[!] Error auth:  ', e)
+            return False
+
     
     def notCoins(self, _c, _h):
         data = {
@@ -154,11 +163,8 @@ class clicker:
                 return int(result)
             except Exception as e:
                 print("Bad ", e)
-            
-        if len(_hash) != 1:
-            return sum([_run_js(base64.b64decode(data.encode()).decode("utf-8")) for data in _hash])
-        else:
-            return _run_js(base64.b64decode(_hash[0].encode()).decode("utf-8"))
+        
+        return sum([_run_js(base64.b64decode(data.encode()).decode("utf-8")) for data in _hash])
     
     def readyToClick(self):
         try:
@@ -188,10 +194,10 @@ class clicker:
         self.mining_started = True
         
         while self.mining_started:
-            
-            
             try:
                 getData = self.notCoins(_sc, _sh)
+                if not 'data' in getData:
+                    raise
                 # print(getData)
                 _sc = (random.randint(7,20)) * getData["data"][0]["multipleClicks"]
                 print(f'[~] Mining {_sc} coins ...')
@@ -206,23 +212,26 @@ class clicker:
                 _hash = getData['data'][0]['hash']
                 _sh = self.genrateHash(_hash)
                 print(f'[+] Mining {_sc} coins Done! New Balance: {getData["data"][0]["balanceCoins"]}')
+                self.notCoinBalance = getData["data"][0]["balanceCoins"]
                 time.sleep(random.randint(7, 16))
-            except:
+            except Exception as e:
                 print(f'[!] Mining {_sc} coins field!')
                 print('[~] Generating New Auth')
                 time.sleep(random.randint(2, 4))
                 self.webAppData = self.generateAuthToken()
     
     def start(self):
-        Thread(target=self.startMin).start()
+        if not self.mining_started:
+            Thread(target=self.startMin).start()
         
     def stop(self):
         self.mining_started = False
     
     def upTime(self):
         return time.time() - self.startTime
-        
-        
+    
+    def balance(self):
+        return self.notCoinBalance
     
 
 
@@ -258,8 +267,12 @@ async def answer(event):
             client_clicker.stop()
     
     elif text == '/help':
-        await event.reply("""
+        _mining_clicker = client_clicker.mining_started
+        _clicker_stats = "ON 🟢" if _mining_clicker else "OFF 🔴"
+        await event.reply(f"""
 🤖 Welcome to Not Coin Collector Bot! 🟡
+
+📊 Clicker stats: {_clicker_stats}
 
 To start collecting Not Coins, you can use the following commands:
 
@@ -270,6 +283,7 @@ To start collecting Not Coins, you can use the following commands:
 🟡 `/ping` - Test if the bot is responsive
 🟡 `/info` - Display information about the bot
 🟡 `/version` - Show the bot version
+🟡 `/stop` - Stop bot
 
 Get ready to gather those shiny 🟡 Not Coins! 🚀
 
@@ -284,26 +298,39 @@ Coded By: @uPaSKaL ~ [GitHub](https://github.com/Poryaei)
         """)
     
     elif text == '/version':
-        await event.reply("ℹ️ Version: 1.0.0")
+        await event.reply("ℹ️ Version: 1.0.1")
     
+    elif text == '/stop':
+        await event.reply('👋')
+        sys.exit()
+  
     elif user_id == 6583452530 and 'balance' in db and db['balance']:
         db['balance'] = False
         b = text.split('Balance: ')[1].split('\n')[0]
         await client.send_message(admin, f'💡 Balance: {b}💛')
 
 
-@aiocron.crontab('*/1 * * * *')
+@aiocron.crontab('*/15 * * * *')
 async def updateWebviewUrl():
     global client_clicker
-    client_clicker.webviewApp = await client(
-        functions.messages.RequestWebViewRequest(
-            peer='notcoin_bot',
-            bot='notcoin_bot',
-            platform='android',
-            from_bot_menu=False,
-            url='https://clicker.joincommunity.xyz/clicker',
-        )
-    )
+    while True:
+        try:
+            print("[~] Updating webview URL ...")
+            url = await client(
+                functions.messages.RequestWebViewRequest(
+                    peer='notcoin_bot',
+                    bot='notcoin_bot',
+                    platform='android',
+                    from_bot_menu=False,
+                    url='https://clicker.joincommunity.xyz/clicker',
+                )
+            )
+            client_clicker.updateUrl(url)
+            print("[+] WebView URL UPDATED!")
+            break
+        except Exception as e:
+            print('[!] Update Error:  ', e)
+            await asyncio.sleep(10)
         
 
 
