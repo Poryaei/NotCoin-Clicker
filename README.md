@@ -37,7 +37,7 @@ This project contains code for a Telegram bot and background clicker that intera
    - `/balance` to check NotCoin balance
 
 ## Screenshots
-![](Collection.png)
+![](NotCoin.jpg)
 
 
 
