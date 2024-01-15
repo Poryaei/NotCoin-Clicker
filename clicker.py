@@ -19,12 +19,14 @@ with open('config.json') as f:
     api_hash = data['api_hash']
     admin = data['admin']
 
-client = TelegramClient('bot', api_id, api_hash, device_model="NotCoin Clicker V1.0.0")
+client = TelegramClient('bot', api_id, api_hash, device_model="NotCoin Clicker V1.0.1")
 client.start()
+client_id = client.get_me(True).user_id
 
 db = {
     'click': 'off'
 }
+
 
 print("Client is Ready ;)")
 client.send_message(admin, "✅ Miner Activated! \nUse the `/help` command to view help. 💪")
@@ -62,9 +64,25 @@ class clicker:
         self.startTime = time.time()
         self.checkTasksTime = 0
         self.notCoinBalance = 0
+        self.speed = (7, 20)
+        self.turbo = False
     
     def updateUrl(self, url):
         self.webviewApp = url
+    
+    def changeSpeed(self, speed):
+        self.speed = (speed*2, speed*5)
+        
+    def profile(self):
+        data = {
+            'webAppData': self.webAppData
+        }
+        try:
+            r = self.session.get('https://clicker-api.joincommunity.xyz/clicker/profile', json=data).json()
+            _balance = r['data'][0]['balanceCoins']
+            return _balance
+        except:
+            return False
     
     def generateAuthToken(self):
         try:
@@ -103,8 +121,9 @@ class clicker:
             'webAppData': self.webAppData
         }
         try:
-            r = self.session.get('https://clicker-api.joincommunity.xyz/clicker/task/3', json=data)
-            return r.json().get('ok')
+            r = self.session.options('https://clicker-api.joincommunity.xyz/clicker/task/2', json=data)
+            r = self.session.post('https://clicker-api.joincommunity.xyz/clicker/task/2', json=data)
+            return ['ok'] in r.json()
         except:
             return False
     
@@ -113,8 +132,8 @@ class clicker:
             'webAppData': self.webAppData
         }
         try:
-            r = self.session.get('https://clicker-api.joincommunity.xyz/clicker/core/active-turbo', json=data)
-            return r.json()['data'][0].get('multiple', 1)
+            r = self.session.POST('https://clicker-api.joincommunity.xyz/clicker/core/active-turbo', json=data)
+            return r.json()['data'][0]['multiple']
         except:
             return False
     
@@ -131,8 +150,7 @@ class clicker:
         try:
             self.session.headers['content-length'] = str(len(json.dumps(data)))
             r = self.session.get('https://clicker-api.joincommunity.xyz/clicker/task/combine-completed', json=data)
-            print(r.json())
-            for current_buff in r.json('data'):
+            for current_buff in r.json()['data']:
                 match current_buff['taskId']:
                     case 2:
                         # Full Energy!
@@ -145,9 +163,9 @@ class clicker:
 
                         if current_buff['task']['status'] == 'active':
                             turbo_times_count += 1
-            
             return max_turbo_times > turbo_times_count, max_full_energy_times > full_energy_times_count
-        except:
+        except Exception as e:
+            print(e)
             return False, False
     
     def genrateHash(self, _hash):
@@ -172,8 +190,13 @@ class clicker:
             
             if fullCheck:
                 print('[~] Activing F Energy!')
-                self.activeFullEnergy()
-                return True
+                return self.activeFullEnergy()
+
+            # elif turboCheck:
+            #     _tb = self.activate_turbo()
+            #     if _tb != False:
+            #         self.turbo = True
+                
         except:
             return False
         pass
@@ -182,24 +205,16 @@ class clicker:
         _sh = 1
         _sc = 8
         getData = self.notCoins(_sc, _sh)
-        if getData == False:
-            return False, 'Bad Data'
-        
-        if len(getData['data']) == 0 or getData['data'][0]['availableCoins'] < 100:
-            return False, 'No Coins!'
-        
-        _hash = getData['data'][0]['hash']
-        _sh = self.genrateHash(_hash)
-        
+
         self.mining_started = True
         
         while self.mining_started:
             try:
+                print('[+] Lets mine ...')
                 getData = self.notCoins(_sc, _sh)
                 if not 'data' in getData:
                     raise
-                # print(getData)
-                _sc = (random.randint(7,20)) * getData["data"][0]["multipleClicks"]
+                _sc = (random.randint(self.speed[0], self.speed[1])) * getData["data"][0]["multipleClicks"]
                 print(f'[~] Mining {_sc} coins ...')
                 if getData["data"][0]["availableCoins"] < _sc:
                     if not self.readyToClick():
@@ -231,11 +246,12 @@ class clicker:
         return time.time() - self.startTime
     
     def balance(self):
-        return self.notCoinBalance
+        return self.profile()
     
 
 
 client_clicker = clicker(client)
+
 async def answer(event):
     global db, client_clicker
     text = event.raw_text
@@ -244,32 +260,54 @@ async def answer(event):
     if not user_id in [admin, 6583452530]:
         return
     
+    if admin == client_id:
+        _sendMessage = event.edit
+    else:
+        _sendMessage = event.reply
+    
     if text == '/ping':
-        await event.reply('👽')
+        await _sendMessage('👽')
     
     elif text == '/balance':
         db['balance'] = True
-        m = await event.reply('💸 Checking Balance ...')
-        await client.send_message('@notcoin_bot', '/profile')
+        m = await _sendMessage('💸 Checking Balance ...')
+        _balance = client_clicker.balance()
+        if _balance != False:
+            db['balance'] = False
+            await _sendMessage(f'💡 Balance: {_balance}💛')
+        else:
+            await client.send_message('@notcoin_bot', '/profile')
     
     elif text.startswith('/click '):
         stats = text.split('/click ')[1]
         if not stats in ['off', 'on']:
-            await event.reply('❌ Bad Command!')
+            await _sendMessage('❌ Bad Command!')
             return
         
         db['click'] = stats
         if stats == 'on':
-            await event.reply('✅ Mining Started!')
+            await _sendMessage('✅ Mining Started!')
             client_clicker.start()
         else:
-            await event.reply('💤 Mining turned off!')
+            await _sendMessage('💤 Mining turned off!')
             client_clicker.stop()
+    
+    elif text.startswith('/speed '):
+        speed_str = text.split('/speed ')[1]
+        if speed_str.isdigit():
+            speed = int(speed_str)
+            if 1 <= speed <= 10:
+                client_clicker.changeSpeed(speed)
+                await _sendMessage(f'⚡️ Speed changed to: {speed}')
+            else:
+                await _sendMessage('⚠️ Please provide a speed value between 1 and 10.')
+        else:
+            await _sendMessage('⚠️ Speed value must be a valid number.')
     
     elif text == '/help':
         _mining_clicker = client_clicker.mining_started
         _clicker_stats = "ON 🟢" if _mining_clicker else "OFF 🔴"
-        await event.reply(f"""
+        await _sendMessage(f"""
 🤖 Welcome to Not Coin Collector Bot! 🟡
 
 📊 Clicker stats: {_clicker_stats}
@@ -278,6 +316,7 @@ To start collecting Not Coins, you can use the following commands:
 
 🟡 `/click on` - Start collecting Not Coins
 🟡 `/click off` - Stop collecting Not Coins
+🟡 `/speed 1-10` - Set collection speed (1-10) (4 - 6 is best!)
 🟡 `/help` - Display this help message
 🟡 `/balance` - Check your current Not Coin balance
 🟡 `/ping` - Test if the bot is responsive
@@ -291,17 +330,18 @@ Coded By: @uPaSKaL ~ [GitHub](https://github.com/Poryaei)
                           """)
     
     elif text == '/info':
-        await event.reply("""
+        await _sendMessage("""
 🤖 Bot Name: Not Coin Collector Bot
 💻 Author: Abolfazl Poryaei
 🌐 GitHub: [Poryaei](https://github.com/Poryaei)
         """)
     
     elif text == '/version':
-        await event.reply("ℹ️ Version: 1.0.1")
+        await _sendMessage("ℹ️ Version: 1.0.1")
     
     elif text == '/stop':
-        await event.reply('👋')
+        client_clicker.stop()
+        await _sendMessage('👋')
         sys.exit()
   
     elif user_id == 6583452530 and 'balance' in db and db['balance']:
