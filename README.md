@@ -35,6 +35,8 @@ This project contains code for a Telegram bot and background clicker that intera
    - `/help` to view help
    - `/click` to enable/disable collection 
    - `/balance` to check NotCoin balance
+   - `/speed 1-10` to set collection speed (1-10)
+   - `/stop` to Stop bot
 
 ## Screenshots
 ![](NotCoin.jpg)
