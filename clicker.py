@@ -274,7 +274,7 @@ async def answer(event):
         _balance = client_clicker.balance()
         if _balance != False:
             db['balance'] = False
-            await _sendMessage(f'💡 Balance: {_balance}💛')
+            await m.edit(f'💡 Balance: {_balance}💛')
         else:
             await client.send_message('@notcoin_bot', '/profile')
     
