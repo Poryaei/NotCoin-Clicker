@@ -11,6 +11,7 @@ import base64
 import random
 import time
 import json
+import cloudscraper
 from threading import Thread
 # -----------
 with open('config.json') as f:
@@ -22,6 +23,9 @@ with open('config.json') as f:
 client = TelegramClient('bot', api_id, api_hash, device_model="NotCoin Clicker V1.0.1")
 client.start()
 client_id = client.get_me(True).user_id
+
+scraper = cloudscraper.create_scraper()
+
 
 db = {
     'click': 'off'
@@ -37,15 +41,17 @@ class clicker:
     def __init__(self, client:TelegramClient) -> None:
         self.session = requests.Session()
         self.session.headers = {
-            "accept": "application/json",
-            "Accept-Language":"en,en-US;q=0.9",
-            "Connection":"keep-alive",
-            "Host": "clicker-api.joincommunity.xyz",
+            "Accept": "application/json",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Accept-Language": "en-US,en;q=0.9,fa;q=0.8",
+            "Auth": "1",
+            "Content-Type": "application/json",
             "Origin": "https://clicker.joincommunity.xyz",
             "Referer": "https://clicker.joincommunity.xyz/",
-            "X-Requested-With": "org.telegram.messenger.web",
-            "auth":"1",
-            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 7_1_2 like Mac OS X) AppleWebKit/537.51.2 (KHTML, like Gecko) Version/7.0 Mobile/11D257 Safari/9537.53",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-site",
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
         }
         
         self.client = client
@@ -59,7 +65,7 @@ class clicker:
             )
         )
         self.webAppData = self.generateAuthToken()
-        print(self.webviewApp)
+        print(self.webviewApp, self.webAppData)
         self.mining_started = False
         self.startTime = time.time()
         self.checkTasksTime = 0
@@ -78,6 +84,7 @@ class clicker:
             'webAppData': self.webAppData
         }
         try:
+            
             r = self.session.get('https://clicker-api.joincommunity.xyz/clicker/profile', json=data).json()
             _balance = r['data'][0]['balanceCoins']
             return _balance
@@ -112,7 +119,9 @@ class clicker:
         }
         self.session.headers['content-length'] = str(len(json.dumps(data)))
         try:
-            return self.session.post("https://clicker-api.joincommunity.xyz/clicker/core/click",json=data).json()
+            # r = self.session.post("https://clicker-api.joincommunity.xyz/clicker/core/click",json=data)
+            r = scraper.post('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.session.headers)
+            return r.json()
         except:
             return False
     
@@ -163,7 +172,7 @@ class clicker:
 
                         if current_buff['task']['status'] == 'active':
                             turbo_times_count += 1
-            return max_turbo_times > turbo_times_count, max_full_energy_times > full_energy_times_count
+            return max_turbo_times >= turbo_times_count, max_full_energy_times >= full_energy_times_count
         except Exception as e:
             print(e)
             return False, False
@@ -212,6 +221,7 @@ class clicker:
             try:
                 print('[+] Lets mine ...')
                 getData = self.notCoins(_sc, _sh)
+                print(getData)
                 if not 'data' in getData:
                     raise
                 _sc = (random.randint(self.speed[0], self.speed[1])) * getData["data"][0]["multipleClicks"]
