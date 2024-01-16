@@ -20,11 +20,11 @@ with open('config.json') as f:
     api_hash = data['api_hash']
     admin = data['admin']
 
-client = TelegramClient('bot', api_id, api_hash, device_model="NotCoin Clicker V1.0.1")
+client = TelegramClient('bot', api_id, api_hash, device_model="NotCoin Clicker V1.1.0")
 client.start()
 client_id = client.get_me(True).user_id
 
-scraper = cloudscraper.create_scraper()
+
 
 
 db = {
@@ -42,7 +42,6 @@ class clicker:
         self.session = requests.Session()
         self.session.headers = {
             "Accept": "application/json",
-            "Accept-Encoding": "gzip, deflate, br",
             "Accept-Language": "en-US,en;q=0.9,fa;q=0.8",
             "Auth": "1",
             "Content-Type": "application/json",
@@ -53,7 +52,7 @@ class clicker:
             "Sec-Fetch-Site": "same-site",
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
         }
-        
+        self.scraper = cloudscraper.create_scraper(self.session)
         self.client = client
         self.webviewApp = client(
             functions.messages.RequestWebViewRequest(
@@ -120,7 +119,8 @@ class clicker:
         self.session.headers['content-length'] = str(len(json.dumps(data)))
         try:
             # r = self.session.post("https://clicker-api.joincommunity.xyz/clicker/core/click",json=data)
-            r = scraper.post('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.session.headers)
+            r = self.scraper.options('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.session.headers)
+            r = self.scraper.post('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.session.headers)
             return r.json()
         except:
             return False
@@ -347,7 +347,7 @@ Coded By: @uPaSKaL ~ [GitHub](https://github.com/Poryaei)
         """)
     
     elif text == '/version':
-        await _sendMessage("ℹ️ Version: 1.0.1")
+        await _sendMessage("ℹ️ Version: 1.1.0")
     
     elif text == '/stop':
         client_clicker.stop()
