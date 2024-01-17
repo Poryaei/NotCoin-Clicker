@@ -12,7 +12,7 @@ import random
 import time
 import json
 import cloudscraper
-from threading import Thread
+from threading import Thread, active_count
 # -----------
 with open('config.json') as f:
     data = json.load(f)
@@ -20,7 +20,7 @@ with open('config.json') as f:
     api_hash = data['api_hash']
     admin = data['admin']
 
-client = TelegramClient('bot', api_id, api_hash, device_model="NotCoin Clicker V1.1.0")
+client = TelegramClient('bot', api_id, api_hash, device_model="NotCoin Clicker V1.2")
 client.start()
 client_id = client.get_me(True).user_id
 
@@ -36,6 +36,63 @@ print("Client is Ready ;)")
 client.send_message(admin, "✅ Miner Activated! \nUse the `/help` command to view help. 💪")
 # -----------
 
+class Proxy_Tools:
+    def __init__(self) -> None:
+        self.proxies = self.getProxies()
+        self.goods = []
+        
+    def getProxies(self):
+        return requests.get('https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks4&timeout=3700&country=all&simplified=true').text.replace('\b', '').split('\n')
+
+    def checkProxy(self, p):
+        s = requests.Session()
+        s.headers = {
+            "Accept": "application/json",
+            "Accept-Language": "en-US,en;q=0.9,fa;q=0.8",
+            "Auth": "1",
+            "Content-Type": "application/json",
+            "Origin": "https://clicker.joincommunity.xyz",
+            "Referer": "https://clicker.joincommunity.xyz/",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-site",
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
+        }
+        
+        proxies = {
+            'http': 'socks4://'+p,
+            'https': 'socks4://'+p
+        }
+        
+        try:
+            scraper = cloudscraper.create_scraper(s)
+            scraper.post('https://clicker-api.joincommunity.xyz/clicker/core/click', timeout=6, proxies=proxies, headers=s.headers)
+            self.goods.append(
+                proxies
+            )
+            return True
+        except Exception as e:
+            pass
+    
+    def new(self):
+        _treads = []
+        for p in self.proxies:
+            while active_count() > 10:
+                if len(self.goods) > 0:
+                    return self.goods[0]
+                pass
+            
+            t = Thread(target=self.checkProxy, args=(p.strip(),))
+            _treads.append(t)
+            t.start()
+        
+        for thread in _treads:
+            if len(self.goods) > 0:
+                return self.goods[0]
+            thread.join()
+        
+        if len(self.goods) > 0:
+            return self.goods[0]
 
 class clicker:
     def __init__(self, client:TelegramClient) -> None:
@@ -71,6 +128,15 @@ class clicker:
         self.notCoinBalance = 0
         self.speed = (7, 20)
         self.turbo = False
+        
+        # Proxy 
+        self.proxies = {}
+        self.updateProxies()
+    
+    def updateProxies(self):
+        _pt = Proxy_Tools()
+        self.proxies = _pt.new()
+        print(self.proxies)
     
     def updateUrl(self, url):
         self.webviewApp = url
@@ -119,10 +185,11 @@ class clicker:
         self.session.headers['content-length'] = str(len(json.dumps(data)))
         try:
             # r = self.session.post("https://clicker-api.joincommunity.xyz/clicker/core/click",json=data)
-            r = self.scraper.options('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.session.headers)
-            r = self.scraper.post('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.session.headers)
+            r = self.scraper.options('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.session.headers, proxies=self.proxies)
+            r = self.scraper.post('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.session.headers, proxies=self.proxies)
             return r.json()
-        except:
+        except Exception as e:
+            print(e)
             return False
     
     def activeFullEnergy(self):
@@ -221,7 +288,7 @@ class clicker:
             try:
                 print('[+] Lets mine ...')
                 getData = self.notCoins(_sc, _sh)
-                print(getData)
+                # print(getData)
                 if not 'data' in getData:
                     raise
                 _sc = (random.randint(self.speed[0], self.speed[1])) * getData["data"][0]["multipleClicks"]
@@ -347,7 +414,7 @@ Coded By: @uPaSKaL ~ [GitHub](https://github.com/Poryaei)
         """)
     
     elif text == '/version':
-        await _sendMessage("ℹ️ Version: 1.1.0")
+        await _sendMessage("ℹ️ Version: 1.2")
     
     elif text == '/stop':
         client_clicker.stop()
@@ -381,6 +448,11 @@ async def updateWebviewUrl():
         except Exception as e:
             print('[!] Update Error:  ', e)
             await asyncio.sleep(10)
+
+@aiocron.crontab('*/5 * * * *')
+async def updateProxies():
+    global client_clicker
+    client_clicker.updateProxies()
         
 
 
