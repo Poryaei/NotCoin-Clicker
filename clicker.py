@@ -20,7 +20,7 @@ with open('config.json') as f:
     api_hash = data['api_hash']
     admin = data['admin']
 
-client = TelegramClient('bot', api_id, api_hash, device_model="NotCoin Clicker V1.2")
+client = TelegramClient('bot', api_id, api_hash, device_model="NotCoin Clicker V1.1.0")
 client.start()
 client_id = client.get_me(True).user_id
 
@@ -131,12 +131,12 @@ class clicker:
         
         # Proxy 
         self.proxies = {}
-        self.updateProxies()
+        # self.updateProxies()
     
     def updateProxies(self):
-        _pt = Proxy_Tools()
-        self.proxies = _pt.new()
-        print(self.proxies)
+        # _pt = Proxy_Tools()
+        # self.proxies = _pt.new()
+        pass
     
     def updateUrl(self, url):
         self.webviewApp = url
@@ -188,8 +188,8 @@ class clicker:
             r = self.scraper.options('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.session.headers, proxies=self.proxies)
             r = self.scraper.post('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.session.headers, proxies=self.proxies)
             return r.json()
-        except Exception as e:
-            print(e)
+        except:
+            
             return False
     
     def activeFullEnergy(self):
@@ -288,7 +288,7 @@ class clicker:
             try:
                 print('[+] Lets mine ...')
                 getData = self.notCoins(_sc, _sh)
-                # print(getData)
+                print(getData)
                 if not 'data' in getData:
                     raise
                 _sc = (random.randint(self.speed[0], self.speed[1])) * getData["data"][0]["multipleClicks"]
@@ -414,7 +414,7 @@ Coded By: @uPaSKaL ~ [GitHub](https://github.com/Poryaei)
         """)
     
     elif text == '/version':
-        await _sendMessage("ℹ️ Version: 1.2")
+        await _sendMessage("ℹ️ Version: 1.1.0")
     
     elif text == '/stop':
         client_clicker.stop()
