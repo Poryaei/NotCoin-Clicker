@@ -4,4 +4,5 @@ telethon
 urllib3
 js2py
 aiocron
-PySock
+PySocks
+requests[socks]
