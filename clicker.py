@@ -1,7 +1,7 @@
 import asyncio
 import js2py
 import requests
-import os, sys
+import sys, ssl
 from telethon.sync import TelegramClient
 from telethon import events
 from telethon.sync import functions, types, events
@@ -11,8 +11,8 @@ import base64
 import random
 import time
 import json
-import cloudscraper
 from threading import Thread, active_count
+from concurrent.futures import ThreadPoolExecutor
 # -----------
 with open('config.json') as f:
     data = json.load(f)
@@ -20,7 +20,7 @@ with open('config.json') as f:
     api_hash = data['api_hash']
     admin = data['admin']
 
-client = TelegramClient('bot', api_id, api_hash, device_model="NotCoin Clicker V1.1.0")
+client = TelegramClient('main', api_id, api_hash, device_model="NotCoin Clicker V1.2")
 client.start()
 client_id = client.get_me(True).user_id
 
@@ -36,20 +36,57 @@ print("Client is Ready ;)")
 client.send_message(admin, "✅ Miner Activated! \nUse the `/help` command to view help. 💪")
 # -----------
 
+class BypassTLSv1_3(requests.adapters.HTTPAdapter):
+    SUPPORTED_CIPHERS = [
+        "ECDHE-ECDSA-AES128-GCM-SHA256", "ECDHE-RSA-AES128-GCM-SHA256",
+        "ECDHE-ECDSA-AES256-GCM-SHA384", "ECDHE-RSA-AES256-GCM-SHA384",
+        "ECDHE-ECDSA-CHACHA20-POLY1305", "ECDHE-RSA-CHACHA20-POLY1305",
+        "ECDHE-RSA-AES128-SHA", "ECDHE-RSA-AES256-SHA",
+        "AES128-GCM-SHA256", "AES256-GCM-SHA384", "AES128-SHA", "AES256-SHA", "DES-CBC3-SHA",
+        "TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384", "TLS_CHACHA20_POLY1305_SHA256",
+        "TLS_AES_128_CCM_SHA256", "TLS_AES_256_CCM_8_SHA256"
+    ]
+
+    def __init__(self, *args, **kwargs):
+        self.ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+        self.ssl_context.set_ciphers(':'.join(BypassTLSv1_3.SUPPORTED_CIPHERS))
+        self.ssl_context.set_ecdh_curve("prime256v1")
+        self.ssl_context.minimum_version = ssl.TLSVersion.TLSv1_3
+        self.ssl_context.maximum_version = ssl.TLSVersion.TLSv1_3
+        super().__init__(*args, **kwargs)
+
+    def init_poolmanager(self, *args, **kwargs):
+        kwargs["ssl_context"] = self.ssl_context
+        kwargs["source_address"] = None
+        return super().init_poolmanager(*args, **kwargs)
+
+    def proxy_manager_for(self, *args, **kwargs):
+        kwargs["ssl_context"] = self.ssl_context
+        kwargs["source_address"] = None
+        return super().proxy_manager_for(*args, **kwargs)
+
+
 class Proxy_Tools:
-    def __init__(self) -> None:
+    def __init__(self):
         self.proxies = self.getProxies()
-        self.goods = []
-        
+        self.valid_proxy = None
+
     def getProxies(self):
-        return requests.get('https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks4&timeout=3700&country=all&simplified=true').text.replace('\b', '').split('\n')
+        proxies = requests.get('https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks4&timeout=3700&country=all&ssl=all&anonymity=all').text.replace('\n', '').replace('\b', '')
+        with open('socks4.txt', 'w') as f:
+            f.write(proxies)
+        return open('socks4.txt').read().split('\n')
 
     def checkProxy(self, p):
-        s = requests.Session()
-        s.headers = {
-            "Accept": "application/json",
+        session = requests.sessions.Session()
+        session.mount("https://", BypassTLSv1_3())
+        session.headers = {
+            "Host": "clicker-api.joincommunity.xyz",
+            "Accept": "*/*",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "auth,authorization,content-type",
             "Accept-Language": "en-US,en;q=0.9,fa;q=0.8",
-            "Auth": "1",
+            "Auth": "5",
             "Content-Type": "application/json",
             "Origin": "https://clicker.joincommunity.xyz",
             "Referer": "https://clicker.joincommunity.xyz/",
@@ -58,45 +95,34 @@ class Proxy_Tools:
             "Sec-Fetch-Site": "same-site",
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
         }
-        
+
         proxies = {
-            'http': 'socks4://'+p,
-            'https': 'socks4://'+p
+            'http': 'socks4://' + p,
+            'https': 'socks4://' + p
         }
-        
+
         try:
-            scraper = cloudscraper.create_scraper(s)
-            scraper.post('https://clicker-api.joincommunity.xyz/clicker/core/click', timeout=6, proxies=proxies, headers=s.headers)
-            self.goods.append(
-                proxies
-            )
-            return True
+            r = session.post('https://clicker-api.joincommunity.xyz/clicker/core/click', timeout=6, proxies=proxies,
+                         headers=session.headers)
+            r.json()
+            self.valid_proxy = proxies
         except Exception as e:
             pass
-    
+
     def new(self):
-        _treads = []
         for p in self.proxies:
-            while active_count() > 10:
-                if len(self.goods) > 0:
-                    return self.goods[0]
+            while active_count() > 20:
                 pass
-            
-            t = Thread(target=self.checkProxy, args=(p.strip(),))
-            _treads.append(t)
-            t.start()
-        
-        for thread in _treads:
-            if len(self.goods) > 0:
-                return self.goods[0]
-            thread.join()
-        
-        if len(self.goods) > 0:
-            return self.goods[0]
+            Thread(
+                target=self.checkProxy, args=(p.strip(),)
+            ).start()
+            if self.valid_proxy != None:
+                return self.valid_proxy
 
 class clicker:
     def __init__(self, client:TelegramClient) -> None:
-        self.session = requests.Session()
+        self.session = requests.sessions.Session()
+        self.session.mount("https://", BypassTLSv1_3())
         self.session.headers = {
             "Accept": "application/json",
             "Accept-Language": "en-US,en;q=0.9,fa;q=0.8",
@@ -109,7 +135,7 @@ class clicker:
             "Sec-Fetch-Site": "same-site",
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
         }
-        self.scraper = cloudscraper.create_scraper(self.session)
+        self.scraper = self.session
         self.client = client
         self.webviewApp = client(
             functions.messages.RequestWebViewRequest(
@@ -128,15 +154,21 @@ class clicker:
         self.notCoinBalance = 0
         self.speed = (7, 20)
         self.turbo = False
-        
+        self.useProxy = True
         # Proxy 
         self.proxies = {}
-        # self.updateProxies()
+        if self.useProxy:
+            self.updateProxies()
     
     def updateProxies(self):
-        # _pt = Proxy_Tools()
-        # self.proxies = _pt.new()
-        pass
+        if self.useProxy:
+            try:
+                _pt = Proxy_Tools()
+                self.proxies = _pt.new()
+                print('[+] Proxies:  ', self.proxies)
+            except Exception as e:
+                print(e)
+                pass
     
     def updateUrl(self, url):
         self.webviewApp = url
@@ -184,12 +216,14 @@ class clicker:
         }
         self.session.headers['content-length'] = str(len(json.dumps(data)))
         try:
-            # r = self.session.post("https://clicker-api.joincommunity.xyz/clicker/core/click",json=data)
-            r = self.scraper.options('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.session.headers, proxies=self.proxies)
-            r = self.scraper.post('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.session.headers, proxies=self.proxies)
+            r = self.scraper.options('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.session.headers, proxies=self.proxies, timeout=10)
+            r = self.scraper.post('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.session.headers, proxies=self.proxies, timeout=10)
             return r.json()
-        except:
-            
+        except ConnectionError as e:
+            self.updateProxies()
+            return self.notCoins(_c, _h)
+        except Exception as e:
+            self.updateProxies()
             return False
     
     def activeFullEnergy(self):
@@ -278,8 +312,8 @@ class clicker:
         pass
     
     def startMin(self):
-        _sh = 1
-        _sc = 8
+        _sh = -1
+        _sc = 20
         getData = self.notCoins(_sc, _sh)
 
         self.mining_started = True
@@ -288,7 +322,6 @@ class clicker:
             try:
                 print('[+] Lets mine ...')
                 getData = self.notCoins(_sc, _sh)
-                print(getData)
                 if not 'data' in getData:
                     raise
                 _sc = (random.randint(self.speed[0], self.speed[1])) * getData["data"][0]["multipleClicks"]
@@ -414,7 +447,7 @@ Coded By: @uPaSKaL ~ [GitHub](https://github.com/Poryaei)
         """)
     
     elif text == '/version':
-        await _sendMessage("ℹ️ Version: 1.1.0")
+        await _sendMessage("ℹ️ Version: V1.2")
     
     elif text == '/stop':
         client_clicker.stop()
