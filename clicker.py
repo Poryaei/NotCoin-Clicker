@@ -254,9 +254,12 @@ class clicker:
             r = self.scraper.post('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.session.headers, proxies=self.proxies, timeout=10)
             return r.json()
         except ConnectionError as e:
+            print('Connection Error: ', e)
+            print('Updating Proxies ...')
             self.updateProxies()
             return self.notCoins(_c, _h)
         except Exception as e:
+            print('Mining Error: ', e)
             self.updateProxies()
             return False
     
