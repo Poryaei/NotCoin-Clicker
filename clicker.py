@@ -1,7 +1,7 @@
 import asyncio
 import js2py
 import requests
-import sys, ssl
+import os, sys, ssl
 from telethon.sync import TelegramClient
 from telethon import events
 from telethon.sync import functions, types, events
@@ -65,17 +65,39 @@ class BypassTLSv1_3(requests.adapters.HTTPAdapter):
         kwargs["source_address"] = None
         return super().proxy_manager_for(*args, **kwargs)
 
-
 class Proxy_Tools:
     def __init__(self):
-        self.proxies = self.getProxies()
+        self.proxies = None
         self.valid_proxy = None
 
     def getProxies(self):
-        proxies = requests.get('https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks4&timeout=3700&country=all&ssl=all&anonymity=all').text.replace('\n', '').replace('\b', '')
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
+            'Referer': 'https://.proxyscrape.com'
+        }
+        try:
+            proxies = requests.get('https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks4&timeout=7000&country=all&ssl=all&anonymity=all', timeout=10, headers=headers).text.replace('\n', '').replace('\b', '')
+            print('[+] Proxy List Updated!')
+        except Exception as e:
+            print(e)
+            
         with open('socks4.txt', 'w') as f:
             f.write(proxies)
         return open('socks4.txt').read().split('\n')
+    
+    def get_proxies_v2(self, protocol):
+        proxies_data = requests.get(f"https://api.proxyscrape.com/v2/?request=getproxies&protocol={protocol}&timeout=7000&country=all&ssl=all&anonymity=all").text
+        proxies_list = proxies_data.split('\n')
+        formatted_proxies = []
+
+        for p in proxies_list:
+            if p.strip():
+                formatted_proxies.append({
+                    'http': f'{protocol}://{p.strip().replace("/r", "")}',
+                    'https': f'{protocol}://{p.strip().replace("/r", "")}'
+                })
+
+        return formatted_proxies
 
     def checkProxy(self, p):
         session = requests.sessions.Session()
@@ -96,12 +118,11 @@ class Proxy_Tools:
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
         }
 
-        proxies = {
-            'http': 'socks4://' + p,
-            'https': 'socks4://' + p
-        }
+        proxies = p
 
         try:
+            r = session.options('https://clicker-api.joincommunity.xyz/clicker/core/click', timeout=6, proxies=proxies,
+                        headers=session.headers, json=data)
             r = session.post('https://clicker-api.joincommunity.xyz/clicker/core/click', timeout=6, proxies=proxies,
                          headers=session.headers)
             r.json()
@@ -110,11 +131,11 @@ class Proxy_Tools:
             pass
 
     def new(self):
-        for p in self.proxies:
+        for p in self.get_proxies_v2('socks4') + self.get_proxies_v2('socks5'):
             while active_count() > 20:
                 pass
             Thread(
-                target=self.checkProxy, args=(p.strip(),)
+                target=self.checkProxy, args=(p,)
             ).start()
             if self.valid_proxy != None:
                 return self.valid_proxy
@@ -134,6 +155,19 @@ class clicker:
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "same-site",
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
+        }
+        self.option_headers = {
+            'Accept': '*/*',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'en-US,en;q=0.9,fa;q=0.8',
+            'Access-Control-Request-Headers': 'auth,authorization,content-type',
+            'Access-Control-Request-Method': 'POST',
+            'Origin': 'https://clicker.joincommunity.xyz',
+            'Referer': 'https://clicker.joincommunity.xyz/',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-site',
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'
         }
         self.scraper = self.session
         self.client = client
@@ -216,7 +250,7 @@ class clicker:
         }
         self.session.headers['content-length'] = str(len(json.dumps(data)))
         try:
-            r = self.scraper.options('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.session.headers, proxies=self.proxies, timeout=10)
+            r = self.scraper.options('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.option_headers, proxies=self.proxies, timeout=10)
             r = self.scraper.post('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.session.headers, proxies=self.proxies, timeout=10)
             return r.json()
         except ConnectionError as e:
@@ -234,7 +268,8 @@ class clicker:
             r = self.session.options('https://clicker-api.joincommunity.xyz/clicker/task/2', json=data)
             r = self.session.post('https://clicker-api.joincommunity.xyz/clicker/task/2', json=data)
             return ['ok'] in r.json()
-        except:
+        except Exception as e:
+            print('[!] Mining Error:   ', e)
             return False
     
     def activate_turbo(self):
@@ -322,6 +357,7 @@ class clicker:
             try:
                 print('[+] Lets mine ...')
                 getData = self.notCoins(_sc, _sh)
+                print(getData)
                 if not 'data' in getData:
                     raise
                 _sc = (random.randint(self.speed[0], self.speed[1])) * getData["data"][0]["multipleClicks"]
@@ -447,7 +483,7 @@ Coded By: @uPaSKaL ~ [GitHub](https://github.com/Poryaei)
         """)
     
     elif text == '/version':
-        await _sendMessage("ℹ️ Version: V1.2")
+        await _sendMessage("ℹ️ Version: 1.2")
     
     elif text == '/stop':
         client_clicker.stop()
