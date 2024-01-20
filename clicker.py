@@ -20,7 +20,7 @@ with open('config.json') as f:
     admin = data['admin']
     
 
-VERSION = 1.5
+VERSION = 1.4.0
 
 client = TelegramClient('bot', api_id, api_hash, device_model=f"NotCoin Clicker V{VERSION}")
 client.start()
