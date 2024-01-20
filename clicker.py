@@ -12,7 +12,6 @@ import random
 import time
 import json
 from threading import Thread, active_count
-from concurrent.futures import ThreadPoolExecutor
 # -----------
 with open('config.json') as f:
     data = json.load(f)
@@ -20,7 +19,9 @@ with open('config.json') as f:
     api_hash = data['api_hash']
     admin = data['admin']
 
-client = TelegramClient('bot', api_id, api_hash, device_model="NotCoin Clicker V1.2")
+VERSION = 1.4
+
+client = TelegramClient('bot', api_id, api_hash, device_model=f"NotCoin Clicker V{VERSION}")
 client.start()
 client_id = client.get_me(True).user_id
 
@@ -33,7 +34,7 @@ db = {
 
 
 print("Client is Ready ;)")
-client.send_message(admin, "✅ Miner Activated! \nUse the `/help` command to view help. 💪")
+
 # -----------
 
 class BypassTLSv1_3(requests.adapters.HTTPAdapter):
@@ -118,20 +119,27 @@ class Proxy_Tools:
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
         }
 
+        data = {
+            'count': '100',
+            'hash': -1,
+            'webAppData': "user=pass"
+        }
+
         proxies = p
 
         try:
-            r = session.options('https://clicker-api.joincommunity.xyz/clicker/core/click', timeout=6, proxies=proxies,
-                        headers=session.headers, json=data)
-            r = session.post('https://clicker-api.joincommunity.xyz/clicker/core/click', timeout=6, proxies=proxies,
-                         headers=session.headers)
+            r = session.options('https://clicker-api.joincommunity.xyz/clicker/core/click', timeout=9, proxies=proxies,
+                        headers=session.headers)
+            r = session.post('https://clicker-api.joincommunity.xyz/clicker/core/click', timeout=9, proxies=proxies,
+                         headers=session.headers, json=data)
             r.json()
             self.valid_proxy = proxies
         except Exception as e:
             pass
 
-    def new(self):
-        for p in self.get_proxies_v2('socks4') + self.get_proxies_v2('socks5'):
+    def new(self, _to = 7000):
+        print('[~] Checking Proxies ...')
+        for p in self.get_proxies_v2('socks4') + self.get_proxies_v2('socks5') + self.get_proxies_v2('https'):
             while active_count() > 20:
                 pass
             Thread(
@@ -139,6 +147,12 @@ class Proxy_Tools:
             ).start()
             if self.valid_proxy != None:
                 return self.valid_proxy
+        if _to > 12000:
+            print("[!] I didn't find a suitable proxy! I'm shutting down the process.")
+            sys.exit()
+        if self.valid_proxy == None:
+            print('[!] Trying find new proxy ...')
+            return self.new(_to+1000)
 
 class clicker:
     def __init__(self, client:TelegramClient) -> None:
@@ -157,17 +171,19 @@ class clicker:
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
         }
         self.option_headers = {
-            'Accept': '*/*',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Language': 'en-US,en;q=0.9,fa;q=0.8',
-            'Access-Control-Request-Headers': 'auth,authorization,content-type',
-            'Access-Control-Request-Method': 'POST',
-            'Origin': 'https://clicker.joincommunity.xyz',
-            'Referer': 'https://clicker.joincommunity.xyz/',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-site',
-            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'
+            "Host": "clicker-api.joincommunity.xyz",
+            "Accept": "*/*",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "auth,authorization,content-type",
+            "Accept-Language": "en-US,en;q=0.9,fa;q=0.8",
+            "Auth": "5",
+            "Content-Type": "application/json",
+            "Origin": "https://clicker.joincommunity.xyz",
+            "Referer": "https://clicker.joincommunity.xyz/",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-site",
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
         }
         self.scraper = self.session
         self.client = client
@@ -182,6 +198,8 @@ class clicker:
         )
         self.webAppData = self.generateAuthToken()
         print(self.webviewApp, self.webAppData)
+        self._mining_stats = ['Sleeping 💤', 'Mining 🔨 ', 'OFF 🔴']
+        self.mining_stats = self._mining_stats[-1]
         self.mining_started = False
         self.startTime = time.time()
         self.checkTasksTime = 0
@@ -252,6 +270,9 @@ class clicker:
         try:
             r = self.scraper.options('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.option_headers, proxies=self.proxies, timeout=10)
             r = self.scraper.post('https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.session.headers, proxies=self.proxies, timeout=10)
+            if 'just a moment' in r.text.lower():
+                print('[!] Cloudflare detected!')
+                raise Exception('Cloudflare detected!')
             return r.json()
         except ConnectionError as e:
             print('Connection Error: ', e)
@@ -355,6 +376,7 @@ class clicker:
         getData = self.notCoins(_sc, _sh)
 
         self.mining_started = True
+        self.mining_stats = self._mining_stats[1]
         
         while self.mining_started:
             try:
@@ -368,6 +390,7 @@ class clicker:
                 if getData["data"][0]["availableCoins"] < _sc:
                     if not self.readyToClick():
                         print('[~] Sleeping For 10MIN')
+                        self.mining_stats = self._mining_stats[0]
                         time.sleep(600)
                 
                 if getData['data'][0]['turboTimes'] > 0:
@@ -459,7 +482,7 @@ async def answer(event):
         await _sendMessage(f"""
 🤖 Welcome to Not Coin Collector Bot! 🟡
 
-📊 Clicker stats: {_clicker_stats}
+📊 Clicker stats: {_clicker_stats} ({client_clicker.mining_stats})
 
 To start collecting Not Coins, you can use the following commands:
 
@@ -486,7 +509,7 @@ Coded By: @uPaSKaL ~ [GitHub](https://github.com/Poryaei)
         """)
     
     elif text == '/version':
-        await _sendMessage("ℹ️ Version: 1.2")
+        await _sendMessage(f"ℹ️ Version: {VERSION}")
     
     elif text == '/stop':
         client_clicker.stop()
@@ -520,6 +543,9 @@ async def updateWebviewUrl():
         except Exception as e:
             print('[!] Update Error:  ', e)
             await asyncio.sleep(10)
+
+
+client.send_message(admin, "✅ Miner Activated! \nUse the `/help` command to view help. 💪")
 
 @aiocron.crontab('*/5 * * * *')
 async def updateProxies():
