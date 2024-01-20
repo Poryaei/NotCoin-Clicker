@@ -19,9 +19,7 @@ with open('config.json') as f:
     api_hash = data['api_hash']
     admin = data['admin']
 
-VERSION = 1.4
-
-client = TelegramClient('bot', api_id, api_hash, device_model=f"NotCoin Clicker V{VERSION}")
+client = TelegramClient('bot', api_id, api_hash, device_model="NotCoin Clicker V1.2")
 client.start()
 client_id = client.get_me(True).user_id
 
@@ -159,9 +157,12 @@ class clicker:
         self.session = requests.sessions.Session()
         self.session.mount("https://", BypassTLSv1_3())
         self.session.headers = {
-            "Accept": "application/json",
+            "Host": "clicker-api.joincommunity.xyz",
+            "Accept": "*/*",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "auth,authorization,content-type",
             "Accept-Language": "en-US,en;q=0.9,fa;q=0.8",
-            "Auth": "1",
+            "Auth": "5",
             "Content-Type": "application/json",
             "Origin": "https://clicker.joincommunity.xyz",
             "Referer": "https://clicker.joincommunity.xyz/",
@@ -509,7 +510,7 @@ Coded By: @uPaSKaL ~ [GitHub](https://github.com/Poryaei)
         """)
     
     elif text == '/version':
-        await _sendMessage(f"ℹ️ Version: {VERSION}")
+        await _sendMessage("ℹ️ Version: 1.2")
     
     elif text == '/stop':
         client_clicker.stop()
