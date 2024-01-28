@@ -12,6 +12,7 @@ import random
 import time
 import json
 from threading import Thread, active_count
+from concurrent.futures import ThreadPoolExecutor, as_completed
 # -----------
 with open('config.json') as f:
     data = json.load(f)
@@ -20,7 +21,7 @@ with open('config.json') as f:
     admin = data['admin']
     
 
-VERSION = "1.4.0"
+VERSION = "1.5"
 
 client = TelegramClient('bot', api_id, api_hash, device_model=f"NotCoin Clicker V{VERSION}")
 client.start()
@@ -73,17 +74,15 @@ class BypassTLSv1_3(requests.adapters.HTTPAdapter):
 class ProxyRequests:
     def __init__(self):
         self._time = 0
-        self.proxies = self.refreshProxies()
+        self.proxies = self.refreshProxies() + self.refreshProxies(protocol='socks5') + self.refreshProxies(protocol='https')
     
     def get_proxies(self):
         if time.time() - self._time > 30:
-            self.proxies = self.refreshProxies()
+            self.proxies = self.refreshProxies() + self.refreshProxies(protocol='socks5') + self.refreshProxies(protocol='https')
         
         return self.proxies
     
     def refreshProxies(self, protocol='socks4', timeout=7000):
-        if time.time() - self._time < 20:
-            return self.proxies
         try:
             proxies_data = requests.get(f"https://api.proxyscrape.com/v2/?request=getproxies&protocol={protocol}&timeout={timeout}&country=all&ssl=all&anonymity=all").text
         except:
@@ -115,25 +114,21 @@ class ProxyRequests:
             except:
                 return False
 
-        threads = []
+        futures = []
         results = []
-
+        executor = ThreadPoolExecutor(max_workers=20)
         for proxy in proxies:
-            while active_count() > 20:
-                pass
-            thread = Thread(target=lambda: results.append(check_proxy(proxy)))
-            thread.start()
-            threads.append(thread)
-            successful_results = [result for result in results if result]
-            if any(successful_results):
-                return successful_results[0]
+            f = executor.submit(check_proxy, proxy)
+            futures.append(f)
 
-        for thread in threads:
-            thread.join()
-            
-            successful_results = [result for result in results if result != False]
-            if any(successful_results):
-                return successful_results
+        for f in futures:
+            result = f.result()
+            if result:
+                executor.shutdown(False, cancel_futures=True)
+                return result
+        
+        print('[!] No valid proxy!')
+        return False
 
 class clicker:
     def __init__(self, client:TelegramClient) -> None:
