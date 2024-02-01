@@ -21,7 +21,7 @@ with open('config.json') as f:
     admin = data['admin']
     
 
-VERSION = "1.5"
+VERSION = "1.6"
 
 client = TelegramClient('bot', api_id, api_hash, device_model=f"NotCoin Clicker V{VERSION}")
 client.start()
@@ -84,7 +84,7 @@ class ProxyRequests:
     
     def refreshProxies(self, protocol='socks4', timeout=7000):
         try:
-            proxies_data = requests.get(f"https://api.proxyscrape.com/v2/?request=getproxies&protocol={protocol}&timeout={timeout}&country=all&ssl=all&anonymity=all").text
+            proxies_data = requests.get(f"https://poeai.click/proxy.php/v2/?request=getproxies&protocol={protocol}&timeout={timeout}&country=all&ssl=all&anonymity=all").text
         except:
             return False
         
@@ -245,6 +245,9 @@ class clicker:
         try:
             r = self._request(self.session.options, 'https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.option_headers)
             r = self._request(self.session.post, 'https://clicker-api.joincommunity.xyz/clicker/core/click', json=data, headers=self.session.headers)
+            if r == False:
+                print('[~] Try again ...')
+                return self.notCoins(_c, _h)
             if 'just a moment' in r.text.lower():
                 print('[!] Cloudflare detected!')
                 raise Exception('Cloudflare detected!')
@@ -258,7 +261,7 @@ class clicker:
             'webAppData': self.webAppData
         }
         try:
-            # r = self.session.options('https://clicker-api.joincommunity.xyz/clicker/task/2', json=data)
+            r = self.session.options('https://clicker-api.joincommunity.xyz/clicker/task/2', json=data)
             r = self.session.post('https://clicker-api.joincommunity.xyz/clicker/task/2', json=data)
             return ['ok'] in r.json()
         except Exception as e:
@@ -342,8 +345,6 @@ class clicker:
     def startMin(self):
         _sh = -1
         _sc = 20
-        getData = self.notCoins(_sc, _sh)
-
         self.mining_started = True
         self.mining_stats = self._mining_stats[1]
         
