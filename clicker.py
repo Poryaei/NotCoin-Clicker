@@ -13,6 +13,7 @@ import time
 import json
 from threading import Thread, active_count
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
 # -----------
 with open('config.json') as f:
     data = json.load(f)
@@ -20,7 +21,7 @@ with open('config.json') as f:
     api_hash = data['api_hash']
     admin = data['admin']
     
-
+script_path = os.path.abspath(__file__)
 VERSION = "1.6"
 
 client = TelegramClient('bot', api_id, api_hash, device_model=f"NotCoin Clicker V{VERSION}")
@@ -347,9 +348,10 @@ class clicker:
         _sc = 20
         self.mining_started = True
         self.mining_stats = self._mining_stats[1]
+        error_start_time = None
         
         while self.mining_started:
-            try:
+            try:                         
                 print('[+] Lets mine ...')
                 getData = self.notCoins(_sc, _sh)
                 print(getData)
@@ -376,6 +378,11 @@ class clicker:
                 print('[~] Generating New Auth')
                 time.sleep(random.randint(2, 4))
                 self.webAppData = self.generateAuthToken()
+                if error_start_time is None:
+                    error_start_time = time.time()
+                elif time.time() - error_start_time > 120:
+                    print(f'[!] The bot was restarted due to persistent errors')
+                    os.execv(sys.executable, ['python3', script_path] + sys.argv)
     
     def start(self):
         if not self.mining_started:
@@ -399,8 +406,6 @@ async def answer(event):
     text = event.raw_text
     user_id = event.sender_id
     
-    if not user_id in [admin, 6583452530]:
-        return
     
     if admin == client_id:
         _sendMessage = event.edit
@@ -465,6 +470,7 @@ To start collecting Not Coins, you can use the following commands:
 🟡 `/info` - Display information about the bot
 🟡 `/version` - Show the bot version
 🟡 `/stop` - Stop bot
+🟡 `/restart` - Restart bot
 
 Get ready to gather those shiny 🟡 Not Coins! 🚀
 
@@ -486,10 +492,15 @@ Coded By: @uPaSKaL ~ [GitHub](https://github.com/Poryaei)
         await _sendMessage('👋')
         sys.exit()
   
-    elif user_id == 6583452530 and 'balance' in db and db['balance']:
+    elif 'balance' in db and db['balance']:
         db['balance'] = False
         b = text.split('Balance: ')[1].split('\n')[0]
         await client.send_message(admin, f'💡 Balance: {b}💛')
+
+    elif text == '/restart':
+        await _sendMessage('Restarting')
+        print('[!] Restarting')
+        os.execv(sys.executable, ['python3', script_path] + sys.argv)
 
 
 @aiocron.crontab('*/15 * * * *')
@@ -524,6 +535,5 @@ async def handler(event):
     asyncio.create_task(
         answer(event)
     )
-
 
 client.run_until_disconnected()
