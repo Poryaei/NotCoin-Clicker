@@ -263,7 +263,7 @@ class clicker:
         try:
             r = self.session.options('https://clicker-api.joincommunity.xyz/clicker/task/2', json=data)
             r = self.session.post('https://clicker-api.joincommunity.xyz/clicker/task/2', json=data)
-            return ['ok'] in r.json()
+            return 'ok' in r.json()
         except Exception as e:
             print('[!] Mining Error:   ', e)
             return False
