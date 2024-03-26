@@ -21,7 +21,7 @@ with open('config.json') as f:
     admin = data['admin']
     
 
-VERSION = "1.6"
+VERSION = "1.7"
 
 client = TelegramClient('bot', api_id, api_hash, device_model=f"NotCoin Clicker V{VERSION}")
 client.start()
@@ -69,16 +69,21 @@ class BypassTLSv1_3(requests.adapters.HTTPAdapter):
         return super().proxy_manager_for(*args, **kwargs)
 
 
+def convert_uptime(uptime):
+    hours = int(uptime // 3600)
+    minutes = int((uptime % 3600) // 60)
+    return hours, minutes
 
 
 class ProxyRequests:
     def __init__(self):
         self._time = 0
-        self.proxies = self.refreshProxies() + self.refreshProxies(protocol='socks5') + self.refreshProxies(protocol='https')
+        self._goods = []
+        self.proxies = self.refreshProxies() + self.refreshProxies(protocol='socks5')
     
     def get_proxies(self):
         if time.time() - self._time > 30:
-            self.proxies = self.refreshProxies() + self.refreshProxies(protocol='socks5') + self.refreshProxies(protocol='https')
+            self.proxies = self.refreshProxies() + self.refreshProxies(protocol='socks5')
         
         return self.proxies
     
@@ -109,7 +114,8 @@ class ProxyRequests:
 
         def check_proxy(proxy):
             try:
-                response = session_func(*args, proxies=proxy, timeout=10, **kwargs)
+                response = session_func(*args, proxies=proxy, timeout=15, **kwargs)
+                self._goods.append(proxy)
                 return response
             except:
                 return False
@@ -117,6 +123,11 @@ class ProxyRequests:
         futures = []
         results = []
         executor = ThreadPoolExecutor(max_workers=20)
+        
+        for proxy in self._goods:
+            f = executor.submit(check_proxy, proxy)
+            futures.append(f)
+        
         for proxy in proxies:
             f = executor.submit(check_proxy, proxy)
             futures.append(f)
@@ -227,7 +238,10 @@ class clicker:
             authTK = self.session.post(
                 "https://clicker-api.joincommunity.xyz/auth/webapp-session",
                 json=data
-            ).json()['data']['accessToken']
+            )
+            print(authTK.text)
+            print(authTK)
+            authTK = authTK.json()['data']['accessToken']
             self.session.headers['Authorization'] = f'Bearer {authTK}'
             return webData
         except Exception as e:
@@ -340,7 +354,7 @@ class clicker:
                 
         except:
             return False
-        pass
+        
     
     def startMin(self):
         _sh = -1
@@ -359,9 +373,13 @@ class clicker:
                 print(f'[~] Mining {_sc} coins ...')
                 if getData["data"][0]["availableCoins"] < _sc:
                     if not self.readyToClick():
-                        print('[~] Sleeping For 10MIN')
+                        try:
+                            _sleepTime = data['limitCoins'] / data['miningPerTime']
+                            print('[~] Sleeping For ', _sleepTime, 'Seconds ...')
+                        except:
+                            _sleepTime = 600
                         self.mining_stats = self._mining_stats[0]
-                        time.sleep(600)
+                        time.sleep(_sleepTime)
                 
                 if getData['data'][0]['turboTimes'] > 0:
                     print('')
@@ -370,7 +388,7 @@ class clicker:
                 _sh = self.genrateHash(_hash)
                 print(f'[+] Mining {_sc} coins Done! New Balance: {getData["data"][0]["balanceCoins"]}')
                 self.notCoinBalance = getData["data"][0]["balanceCoins"]
-                time.sleep(random.randint(7, 16))
+                # time.sleep(random.randint(7, 16)) # There's no need to use sleep in the code anymore! Finding its own proxy takes time like this!
             except Exception as e:
                 print(f'[!] Mining {_sc} coins field!')
                 print('[~] Generating New Auth')
@@ -416,7 +434,7 @@ async def answer(event):
         _balance = client_clicker.balance()
         if _balance != False:
             db['balance'] = False
-            await m.edit(f'💡 Balance: {_balance}💛')
+            await m.edit(f'💡 Balance: {int(_balance):,}💛')
         else:
             await client.send_message('@notcoin_bot', '/profile')
     
@@ -438,7 +456,7 @@ async def answer(event):
         speed_str = text.split('/speed ')[1]
         if speed_str.isdigit():
             speed = int(speed_str)
-            if 1 <= speed <= 10:
+            if 1 <= speed <= 20:
                 client_clicker.changeSpeed(speed)
                 await _sendMessage(f'⚡️ Speed changed to: {speed}')
             else:
@@ -447,24 +465,28 @@ async def answer(event):
             await _sendMessage('⚠️ Speed value must be a valid number.')
     
     elif text == '/help':
+        _uptime = client_clicker.upTime()
+        _hours, _minutes = convert_uptime(_uptime)
         _mining_clicker = client_clicker.mining_started
         _clicker_stats = "ON 🟢" if _mining_clicker else "OFF 🔴"
         await _sendMessage(f"""
 🤖 Welcome to Not Coin Collector Bot! 🟡
 
 📊 Clicker stats: {_clicker_stats} ({client_clicker.mining_stats})
+⏳ Uptime: {_hours} hours and {_minutes} minutes
 
 To start collecting Not Coins, you can use the following commands:
 
 🟡 `/click on` - Start collecting Not Coins
 🟡 `/click off` - Stop collecting Not Coins
-🟡 `/speed 1-10` - Set collection speed (1-10) (4 - 6 is best!)
+🟡 `/speed 1-20` - Set collection speed (1-20)
 🟡 `/help` - Display this help message
 🟡 `/balance` - Check your current Not Coin balance
 🟡 `/ping` - Test if the bot is responsive
 🟡 `/info` - Display information about the bot
 🟡 `/version` - Show the bot version
 🟡 `/stop` - Stop bot
+
 
 Get ready to gather those shiny 🟡 Not Coins! 🚀
 
