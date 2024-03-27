@@ -89,14 +89,13 @@ class ProxyRequests:
     
     def refreshProxies(self, protocol='socks4', timeout=7000):
         try:
-            proxies_data = requests.get(f"https://poeai.click/proxy.php/v2/?request=getproxies&protocol={protocol}&timeout={timeout}&country=all&ssl=all&anonymity=all").text
+            proxies = requests.get(f"https://api.proxyscrape.com/v2/?request=displayproxies&protocol={protocol}&timeout={timeout}&country=all&ssl=all&anonymity=all").text
         except:
             return False
         
-        proxies_list = proxies_data.split('\n')
         formatted_proxies = []
 
-        for p in proxies_list:
+        for p in proxies:
             if p.strip():
                 formatted_proxies.append({
                     'http': f'{protocol}://{p.strip().replace("/r", "")}',
