@@ -318,7 +318,7 @@ class clicker:
 
                         if current_buff['task']['status'] == 'active':
                             turbo_times_count += 1
-            return max_turbo_times >= turbo_times_count, max_full_energy_times >= full_energy_times_count
+            return max_turbo_times > turbo_times_count, max_full_energy_times > full_energy_times_count
         except Exception as e:
             print(e)
             return False, False
