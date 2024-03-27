@@ -366,7 +366,6 @@ class clicker:
             try:
                 print('[+] Lets mine ...')
                 getData = self.notCoins(_sc, _sh)
-                print(getData)
                 if not 'data' in getData:
                     raise
                 _sc = (random.randint(self.speed[0], self.speed[1])) * getData["data"][0]["multipleClicks"]
@@ -374,7 +373,7 @@ class clicker:
                 if getData["data"][0]["availableCoins"] < _sc:
                     if not self.readyToClick():
                         try:
-                            _sleepTime = data['limitCoins'] / data['miningPerTime']
+                            _sleepTime = getData["data"][0]['limitCoins'] / getData["data"][0]['miningPerTime']
                             print('[~] Sleeping For ', _sleepTime, 'Seconds ...')
                         except:
                             _sleepTime = 600
