@@ -514,7 +514,28 @@ Coded By: @uPaSKaL ~ [GitHub](https://github.com/Poryaei)
         await client.send_message(admin, f'💡 Balance: {b}💛')
 
 
-@aiocron.crontab('*/15 * * * *')
+@aiocron.crontab('* * * * *')
+async def prolongWebView():
+    global client_clicker
+    while True:
+        try:
+            print("[~] Prolonging webview query:", client_clicker.webviewApp.query_id)
+            peer = 'notcoin_bot'
+            bot = 'notcoin_bot'
+            query_id = client_clicker.webviewApp.query_id
+            request = functions.messages.ProlongWebViewRequest(peer, bot, query_id)
+            result = await client(request)
+            if not result:
+                print("[!] QUERY_ID_INVALID error received. Re-executing updateWebviewUrl.")
+                await updateWebviewUrl()
+#            else:
+#                print("[+] WebView URL PROLONGED!")
+            break
+        except Exception as e:
+            print('[!] Prolong Error:  ', e)
+            await asyncio.sleep(10)
+
+
 async def updateWebviewUrl():
     global client_clicker
     while True:
