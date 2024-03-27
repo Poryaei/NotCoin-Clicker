@@ -92,15 +92,15 @@ class ProxyRequests:
             proxies = requests.get(f"https://api.proxyscrape.com/v2/?request=displayproxies&protocol={protocol}&timeout={timeout}&country=all&ssl=all&anonymity=all").text
         except:
             return False
-        
+
+        proxies_list = proxies_data.split('\n')
         formatted_proxies = []
 
-        for p in proxies:
-            if p.strip():
-                formatted_proxies.append({
-                    'http': f'{protocol}://{p.strip().replace("/r", "")}',
-                    'https': f'{protocol}://{p.strip().replace("/r", "")}'
-                })
+        for p in proxies_list:
+            formatted_proxies.append({
+                'http': f'{protocol}://{p.strip().replace("/r", "")}',
+                'https': f'{protocol}://{p.strip().replace("/r", "")}'
+            })
         self._time = time.time()
         return formatted_proxies
     
